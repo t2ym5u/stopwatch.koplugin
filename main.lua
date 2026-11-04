@@ -9,12 +9,30 @@ local function lrequire(name)
     return package.loaded[key]
 end
 
+-- The game screen -- and the boards, word lists and puzzle banks it pulls
+-- in -- loads the first time the game is opened, not when KOReader starts:
+-- KOReader loads every plugin at startup and keeps it all session, so a
+-- top-level require here costs memory even if the game is never played.
+-- KOReader has put package.path back by then, so our directories are added
+-- again while the module loads (common/ stays as a fallback for the shared
+-- modules the game requires later on).
+local function lazyrequire(name)
+    local saved = package.path
+    package.path = _dir .. "?.lua;" .. _dir .. "common/?.lua;" .. saved
+    local ok, mod = pcall(lrequire, name)
+    package.path = saved
+    if not package.path:find(_dir .. "common/?.lua", 1, true) then
+        package.path = package.path .. ";" .. _dir .. "common/?.lua"
+    end
+    if not ok then error(mod, 0) end
+    return mod
+end
+
 local PluginBase = require("plugin_base")
 local _          = require("i18n")
 
 require("i18n").extend(lrequire("i18n_fr"))
 local Service         = lrequire("service")
-local StopwatchScreen = lrequire("screen")
 
 local Stopwatch = PluginBase:extend{
     name      = "stopwatch",
@@ -32,7 +50,7 @@ function Stopwatch:ensureSettings()
 end
 
 function Stopwatch:createScreen()
-    return StopwatchScreen:new{ plugin = self, service = Service }
+    return lazyrequire("screen"):new{ plugin = self, service = Service }
 end
 
 -- The reader woke up: anything that should have rung while it slept is
