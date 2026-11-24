@@ -97,7 +97,7 @@ function StopwatchScreen:serializeState()
 end
 
 function StopwatchScreen:closeScreen()
-    UIManager:unschedule(self._tick)
+    if self._tick_action then UIManager:unschedule(self._tick_action) end
     self.service:setScreen(nil)
     ScreenBase.closeScreen(self)
 end
@@ -150,9 +150,11 @@ function StopwatchScreen:nextTickDelay(now)
 end
 
 function StopwatchScreen:scheduleTick()
-    UIManager:unschedule(self._tick)
+    -- :schedule wraps self._tick: the wrapper is what UIManager holds.
+    if self._tick_action then UIManager:unschedule(self._tick_action) end
+    self._tick_action = nil
     local d = self:nextTickDelay(Clock.now())
-    if d then UIManager:scheduleIn(d + 0.01, self._tick) end
+    if d then self._tick_action = self:schedule(d + 0.01, self._tick) end
 end
 
 -- Repaints one widget in place and refreshes only its rectangle -- unless
